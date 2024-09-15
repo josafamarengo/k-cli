@@ -122,6 +122,8 @@ func downloadStern() error {
 	}
 
 	fmt.Println("Stern installed successfully.")
+	fmt.Println("")
+	fmt.Println("Please restart your shell or run `source ~/.zshrc` or `source ~/.bashrc` to update your PATH.")
 
 	return nil
 }

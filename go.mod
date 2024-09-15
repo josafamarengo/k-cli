@@ -4,7 +4,9 @@ go 1.23
 
 require (
 	github.com/briandowns/spinner v1.23.1
+	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.0
+	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/fatih/color v1.17.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/schollz/progressbar/v3 v3.14.6
@@ -14,9 +16,7 @@ require (
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/bubbles v0.20.0 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
-	github.com/charmbracelet/lipgloss v0.13.0 // indirect
 	github.com/charmbracelet/x/ansi v0.2.3 // indirect
 	github.com/charmbracelet/x/term v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -1,3 +1,0 @@
-
-os-context=server
-os-context-token=token
