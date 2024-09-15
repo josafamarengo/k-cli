@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
+	"os/user"
 	"strings"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,6 @@ var installCmd = &cobra.Command{
 	Short: "Install kubectl, krew and stern if not present",
 	Run: func(cmd *cobra.Command, args []string) {
 		installKubectl()
-		installKrew()
 		installStern()
 	},
 }
@@ -76,19 +76,6 @@ func moveKubectlToPath() error {
 	return nil
 }
 
-func installKrew() {
-	if !isCommandAvailable("kubectl") {
-		installKubectl()
-	}
-	if !isCommandAvailable("kubectl krew") {
-		fmt.Println("krew not found. Installing krew...")
-		if err := downloadKrew(); err != nil {
-			fmt.Println("Failed to install krew:", err)
-			return
-		}
-	}
-}
-
 func installStern() {
 	if !isCommandAvailable("stern") {
 		fmt.Println("stern not found. Installing...")
@@ -101,77 +88,42 @@ func installStern() {
 	}
 }
 
-func downloadKrew() error {
-	// Criar diretório temporário
-	tmpDir, err := os.MkdirTemp("", "krew-install")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Navegar até o diretório temporário
-	if err := os.Chdir(tmpDir); err != nil {
-		return fmt.Errorf("failed to change to temp directory: %w", err)
-	}
-
-	// Detectar o sistema operacional
-	osType := strings.ToLower(runtime.GOOS)
-
-	// Detectar a arquitetura
-	arch, err := detectArch()
-	if err != nil {
-		return fmt.Errorf("failed to detect architecture: %w", err)
-	}
-
-	// Nome do arquivo krew
-	krew := fmt.Sprintf("krew-%s_%s", osType, arch)
-
-	// URL para baixar o krew
-	krewURL := fmt.Sprintf("https://github.com/kubernetes-sigs/krew/releases/latest/download/%s.tar.gz", krew)
-
-	// Baixar o arquivo krew.tar.gz
-	fmt.Println("Downloading Krew...")
-	if err := execCommand("curl", "-fsSLO", krewURL); err != nil {
-		return fmt.Errorf("failed to download krew: %w", err)
-	}
-
-	// Extrair o arquivo tar.gz
-	fmt.Println("Extracting Krew...")
-	if err := execCommand("tar", "zxvf", fmt.Sprintf("%s.tar.gz", krew)); err != nil {
-		return fmt.Errorf("failed to extract krew: %w", err)
-	}
-
-	// Instalar o Krew
-	fmt.Println("Installing Krew...")
-	if err := execCommand(fmt.Sprintf("./%s", krew), "install", "krew"); err != nil {
-		return fmt.Errorf("failed to install krew: %w", err)
-	}
-
-	fmt.Println("Krew installed successfully.")
-	return nil
-}
-
 func downloadStern() error {
-	if err := execCommand("kubectl", "krew", "install", "stern"); err != nil {
-		return fmt.Errorf("failed to install stern: %w", err)
+	stern := "stern_1.30.0_linux_amd64"
+	sternURL := "https://github.com/stern/stern/releases/download/v1.30.0/stern_1.30.0_linux_amd64.tar.gz"
+	 localDir := filepath.Join(os.Getenv("HOME"), ".local", "bin")
+	 fmt.Printf("Local directory: %s\n", localDir)
+
+
+	fmt.Println("Downloading Stern...")
+	if err := execCommand("curl", "-L", "-o" , stern, sternURL); err != nil {
+		return fmt.Errorf("failed to download stern: %w", err)
 	}
-	fmt.Println("stern installed successfully.")
+
+	fmt.Println("Extracting Stern...")
+	if err := execCommand("tar", "zxvf", stern); err != nil {
+		return fmt.Errorf("failed to extract Stern: %w", err)
+	}
+
+	if err := execCommand("rm", stern); err != nil {
+		return fmt.Errorf("failed to remove stern: %w", err)
+    }
+
+	fmt.Println("Installing Stern...")
+	if err := execCommand("chmod", "+x", "stern"); err != nil {
+		return fmt.Errorf("failed to make Stern executable: %w", err)
+    }
+	if err := execCommand("mv", "stern", localDir); err != nil {
+		return fmt.Errorf("failed to install Stern: %w", err)
+	}
+
+	if err := addToPath(localDir); err != nil {
+		return fmt.Errorf("failed to update PATH: %w", err)
+	}
+
+	fmt.Println("Stern installed successfully.")
+
 	return nil
-}
-
-func detectArch() (string, error) {
-	arch := runtime.GOARCH
-
-	switch arch {
-	case "amd64":
-		return "amd64", nil
-	case "arm64":
-		return "arm64", nil
-	case "386":
-		return "386", nil
-	default:
-		return "", fmt.Errorf("unsupported architecture: %s", arch)
-	}
 }
 
 func execCommand(command string, args ...string) error {
@@ -188,4 +140,48 @@ func isCommandAvailable(cmd string) bool {
 
 func init() {
 	rootCmd.AddCommand(installCmd)
+}
+
+func addToPath(cmd string) error {
+	usr, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("erro ao obter o diretório home do usuário: %w", err)
+	}
+	homeDir := usr.HomeDir
+
+	files := []string{
+		filepath.Join(homeDir, ".bashrc"),
+		filepath.Join(homeDir, ".zshrc"),
+	}
+
+	lineToAdd := fmt.Sprintf(`export PATH="%s:$PATH"`, cmd)
+
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				return fmt.Errorf("erro ao abrir o arquivo %s: %w", file, err)
+			}
+
+			content, err := os.ReadFile(file)
+			if err != nil {
+				f.Close()
+				return fmt.Errorf("erro ao ler o arquivo %s: %w", file, err)
+			}
+
+			if !strings.Contains(string(content), lineToAdd) {
+				if _, err := f.WriteString("\n" + lineToAdd + "\n"); err != nil {
+					f.Close()
+					return fmt.Errorf("erro ao escrever no arquivo %s: %w", file, err)
+				}
+				fmt.Printf("Linha adicionada ao arquivo %s\n", file)
+			} else {
+				fmt.Printf("A linha já está presente no arquivo %s\n", file)
+			}
+			f.Close()
+		} else {
+			fmt.Printf("Arquivo %s não encontrado\n", file)
+		}
+	}
+	return nil
 }
