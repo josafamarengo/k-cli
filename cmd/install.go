@@ -5,18 +5,20 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/spf13/cobra"
 )
 
 var installCmd = &cobra.Command{
 	Use:   "install-tools",
-	Short: "Install kubectl, stern, k9s and Rancher CLI if not present",
+	Short: "Install kubectl, krew and stern if not present",
 	Run: func(cmd *cobra.Command, args []string) {
 		installKubectl()
+		installKrew()
 		installStern()
-		installK9s()
-		installRancherCLI()
 	},
 }
 
@@ -24,117 +26,164 @@ func installKubectl() {
 	if !isCommandAvailable("kubectl") {
 		fmt.Println("kubectl not found. Installing...")
 		downloadKubectl()
+		if err := moveKubectlToPath(); err != nil {
+			fmt.Println("Failed to move kubectl:", err)
+			return
+		}
+		fmt.Println("kubectl installed successfully.")
 	} else {
 		fmt.Println("kubectl is already installed.")
+	}
+}
+
+func downloadKubectl() {
+	// Fazendo o request para obter a versão estável
+	resp, err := http.Get("https://dl.k8s.io/release/stable.txt")
+	if err != nil {
+		fmt.Println("Erro ao obter versão estável:", err)
+	}
+	defer resp.Body.Close()
+
+	// Lendo o corpo da resposta
+	versionBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Erro ao ler a resposta:", err)
+	}
+
+	// Convertendo bytes para string e removendo quebras de linha
+	version := strings.TrimSpace(string(versionBytes))
+
+	// Construindo a URL final
+	kubectlUrl := fmt.Sprintf("https://dl.k8s.io/release/%s/bin/linux/amd64/kubectl", version)
+
+	if kubectlUrl == "" {
+		fmt.Println("URL do kubectl não encontrada")
+		return
+	}
+
+	if err := execCommand("curl", "-LO", kubectlUrl); err != nil {
+		fmt.Println("Failed to download kubectl:", err)
+	}
+}
+
+func moveKubectlToPath() error {
+	if err := os.Rename("kubectl", "/usr/local/bin/kubectl"); err != nil {
+		return fmt.Errorf("failed to move kubectl to /usr/local/bin: %w", err)
+	}
+	if !isCommandAvailable("kubectl") {
+		return fmt.Errorf("kubectl not found after move")
+	}
+	return nil
+}
+
+func installKrew() {
+	if !isCommandAvailable("kubectl") {
+		installKubectl()
+	}
+	if !isCommandAvailable("kubectl krew") {
+		fmt.Println("krew not found. Installing krew...")
+		if err := downloadKrew(); err != nil {
+			fmt.Println("Failed to install krew:", err)
+			return
+		}
 	}
 }
 
 func installStern() {
 	if !isCommandAvailable("stern") {
 		fmt.Println("stern not found. Installing...")
-		downloadStern()
+		if err := downloadStern(); err != nil {
+			fmt.Println("Failed to install stern:", err)
+			return
+		}
 	} else {
 		fmt.Println("stern is already installed.")
 	}
 }
 
-func installK9s() {
-	if !isCommandAvailable("k9s") {
-		fmt.Println("k9s not found. Installing...")
-		downloadK9s()
-	} else {
-		fmt.Println("k9s is already installed.")
+func downloadKrew() error {
+	// Criar diretório temporário
+	tmpDir, err := os.MkdirTemp("", "krew-install")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Navegar até o diretório temporário
+	if err := os.Chdir(tmpDir); err != nil {
+		return fmt.Errorf("failed to change to temp directory: %w", err)
+	}
+
+	// Detectar o sistema operacional
+	osType := strings.ToLower(runtime.GOOS)
+
+	// Detectar a arquitetura
+	arch, err := detectArch()
+	if err != nil {
+		return fmt.Errorf("failed to detect architecture: %w", err)
+	}
+
+	// Nome do arquivo krew
+	krew := fmt.Sprintf("krew-%s_%s", osType, arch)
+
+	// URL para baixar o krew
+	krewURL := fmt.Sprintf("https://github.com/kubernetes-sigs/krew/releases/latest/download/%s.tar.gz", krew)
+
+	// Baixar o arquivo krew.tar.gz
+	fmt.Println("Downloading Krew...")
+	if err := execCommand("curl", "-fsSLO", krewURL); err != nil {
+		return fmt.Errorf("failed to download krew: %w", err)
+	}
+
+	// Extrair o arquivo tar.gz
+	fmt.Println("Extracting Krew...")
+	if err := execCommand("tar", "zxvf", fmt.Sprintf("%s.tar.gz", krew)); err != nil {
+		return fmt.Errorf("failed to extract krew: %w", err)
+	}
+
+	// Instalar o Krew
+	fmt.Println("Installing Krew...")
+	if err := execCommand(fmt.Sprintf("./%s", krew), "install", "krew"); err != nil {
+		return fmt.Errorf("failed to install krew: %w", err)
+	}
+
+	fmt.Println("Krew installed successfully.")
+	return nil
+}
+
+func downloadStern() error {
+	if err := execCommand("kubectl", "krew", "install", "stern"); err != nil {
+		return fmt.Errorf("failed to install stern: %w", err)
+	}
+	fmt.Println("stern installed successfully.")
+	return nil
+}
+
+func detectArch() (string, error) {
+	arch := runtime.GOARCH
+
+	switch arch {
+	case "amd64":
+		return "amd64", nil
+	case "arm64":
+		return "arm64", nil
+	case "386":
+		return "386", nil
+	default:
+		return "", fmt.Errorf("unsupported architecture: %s", arch)
 	}
 }
 
-func installRancherCLI() {
-	if !isCommandAvailable("rancher") {
-		fmt.Println("Rancher CLI not found. Installing...")
-		downloadRancherCLI()
-	} else {
-		fmt.Println("Rancher CLI is already installed.")
-	}
-}
-
-func isCommandAvailable(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
-func downloadKubectl() {
-	url := ""
-	switch runtime.GOOS {
-	case "linux":
-		url = "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-	case "darwin":
-		url = "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/amd64/kubectl"
-	case "windows":
-		url = "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/windows/amd64/kubectl.exe"
-	}
-	installTool(url, "kubectl")
-}
-
-func downloadStern() {
-	url := ""
-	switch runtime.GOOS {
-	case "linux":
-		url = "https://github.com/stern/stern/releases/latest/download/stern_linux_amd64"
-	case "darwin":
-		url = "https://github.com/stern/stern/releases/latest/download/stern_darwin_amd64"
-	case "windows":
-		url = "https://github.com/stern/stern/releases/latest/download/stern_windows_amd64.exe"
-	}
-	installTool(url, "stern")
-}
-
-func downloadK9s() {
-	url := ""
-	switch runtime.GOOS {
-	case "linux":
-		url = "https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_x86_64.tar.gz"
-	case "darwin":
-		url = "https://github.com/derailed/k9s/releases/latest/download/k9s_Darwin_x86_64.tar.gz"
-	case "windows":
-		url = "https://github.com/derailed/k9s/releases/latest/download/k9s_Windows_x86_64.tar.gz"
-	}
-	installTool(url, "k9s")
-}
-
-func downloadRancherCLI() {
-	url := ""
-	switch runtime.GOOS {
-	case "linux":
-		url = "https://github.com/rancher/cli/releases/latest/download/rancher-linux-amd64.tar.gz"
-	case "darwin":
-		url = "https://github.com/rancher/cli/releases/latest/download/rancher-darwin-amd64.tar.gz"
-	case "windows":
-		url = "https://github.com/rancher/cli/releases/latest/download/rancher-windows-amd64.zip"
-	}
-	installTool(url, "rancher")
-}
-
-func installTool(url string, name string) {
-	fmt.Printf("Downloading %s from %s...\n", name, url)
-
-	cmd := exec.Command("curl", "-LO", url)
+func execCommand(command string, args ...string) error {
+	cmd := exec.Command(command, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		fmt.Printf("Failed to download %s: %v\n", name, err)
-		return
-	}
+	return cmd.Run()
+}
 
-	if runtime.GOOS != "windows" {
-		cmd = exec.Command("chmod", "+x", name)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err = cmd.Run()
-		if err != nil {
-			fmt.Printf("Failed to make %s executable: %v\n", name, err)
-		}
-	}
-	fmt.Printf("%s installed successfully.\n", name)
+func isCommandAvailable(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
 }
 
 func init() {

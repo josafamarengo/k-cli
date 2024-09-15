@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-    "time"
 	"strings"
 	"os/exec"
 
@@ -15,6 +14,7 @@ import (
 var contextFile = "assets/contexts.txt"
 
 type model struct {
+    help helpModel
     name   string
     server string
     token  string
@@ -50,14 +50,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 m.token = m.input
                 m.input = ""
                 m.stage++
-                return m, nil
-            case 3:
-                m.envType = m.input
-                if m.name == "" || m.server == "" || m.token == "" || (m.envType != "openshift" && m.envType != "rancher") {
-                    fmt.Println("Error: All fields are required and environment type must be 'openshift' or 'rancher'")
-                    return m, tea.Quit
-                }
-                addContext(m.name, m.server, m.token, m.envType)
+                addContext(m.name, m.server, m.token)
                 return m, tea.Quit
             }
         case "backspace":
@@ -79,8 +72,6 @@ func (m model) View() string {
         return fmt.Sprintf("    Enter the server: %s", m.input)
     case 2:
         return fmt.Sprintf("    Enter the token: %s", m.input)
-    case 3:
-        return fmt.Sprintf("    Enter the environment type (openshift/rancher): %s", m.input)
     default:
         return "Unknown stage"
     }
@@ -146,57 +137,15 @@ var contextCmd = &cobra.Command{
 
 func listContexts() {
     
-    file, err := os.Open(contextFile)
+    cmd := exec.Command("kubectl", "config", "get-contexts", "-o", "name")
+    output, err := cmd.Output()
     if err != nil {
-        fmt.Println("Error opening file:", err)
-        return
-    }
-    defer file.Close()
-
-    var contexts []string
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        line := scanner.Text()
-        if strings.TrimSpace(line) == "" {
-            continue // Ignora linhas em branco
-        }
-        contexts = append(contexts, line)
-    }
-
-    if err := scanner.Err(); err != nil {
-        fmt.Println("Error reading file:", err)
+        fmt.Println("Failed to list contexts:", err)
         return
     }
 
-    if len(contexts) == 0 {
-        fmt.Println("No contexts available. Please add a context first.")
-        return
-    }
-
-    var maxKeyLength int
-    contextMap := make(map[string]string)
-    for _, line := range contexts {
-        parts := strings.SplitN(line, "=", 2)
-        if len(parts) == 2 {
-            key := parts[0]
-            value := parts[1]
-            if strings.HasSuffix(key, "-token") {
-                continue
-            }
-            if _, exists := contextMap[key]; !exists {
-                contextMap[key] = value
-                if len(key) > maxKeyLength {
-                    maxKeyLength = len(key)
-                }
-            }
-        }
-    }
-
-    fmt.Println("Here is the list of available contexts to configure:")
-
-    for key, value := range contextMap {
-        fmt.Printf("   %-*s = %s\n", maxKeyLength, key, value)
-    }
+    fmt.Println("Available contexts:")
+    fmt.Println(string(output))
 }
 
 
@@ -205,37 +154,38 @@ func getCurrentContext() {
 	executeCommand("kubectl", "config", "current-context")
 }
 
-func addContext(name, server, token, envType string) {
-    
-    if envType == "openshift" {
-        name = "os-" + name
-    }
-
-	file, err := os.OpenFile(contextFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-
+func addContext(name, clusterURL, token string) {
+	cmd := exec.Command("kubectl", "config", "set-cluster", name, "--server="+clusterURL)
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer file.Close()
-
-	contextEntry := fmt.Sprintf("%s=%s\n", name, server)
-	tokenEntry := fmt.Sprintf("%s-token=%s\n", name, token)
-	
-	_, err = file.WriteString(contextEntry)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
-	
-	_, err = file.WriteString(tokenEntry)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
+		fmt.Println("Failed to set cluster:", err)
 		return
 	}
 
-	fmt.Printf("Context '%s' with server '%s' added successfully.\n", name, server)
+	cmd = exec.Command("kubectl", "config", "set-credentials", name+"-user", "--token="+token)
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Failed to set credentials:", err)
+		return
+	}
+
+	cmd = exec.Command("kubectl", "config", "set-context", name, "--cluster="+name, "--user="+name+"-user")
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Failed to set context:", err)
+		return
+	}
+
+	cmd = exec.Command("kubectl", "config", "use-context", name)
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Failed to switch context:", err)
+		return
+	}
+
+	fmt.Println("Successfully added and switched to context:", name)
 }
+
 
 func updateContext(name, newValue string) {
 	file, err := os.Open(contextFile)
@@ -280,103 +230,43 @@ func updateContext(name, newValue string) {
 }
 
 func removeContext(name string) {
-    file, err := os.Open(contextFile)
+    // Remover o contexto
+    cmd := exec.Command("kubectl", "config", "delete-context", name)
+    err := cmd.Run()
     if err != nil {
-        fmt.Println("Error opening file:", err)
+        fmt.Println("Failed to remove context:", err)
         return
     }
-    defer file.Close()
+    fmt.Printf("Successfully removed context: %s\n", name)
 
-    var lines []string
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        line := scanner.Text()
-        if strings.HasPrefix(line, name+"=") || strings.HasPrefix(line, name+"-token=") {
-            continue // Ignora linhas que correspondem ao contexto a ser removido
-        }
-        lines = append(lines, line)
-    }
-
-    if err := scanner.Err(); err != nil {
-        fmt.Println("Error reading file:", err)
-        return
-    }
-
-    file, err = os.Create(contextFile)
+    // Remover o cluster associado
+    cmd = exec.Command("kubectl", "config", "unset", "clusters."+name)
+    err = cmd.Run()
     if err != nil {
-        fmt.Println("Error creating file:", err)
+        fmt.Println("Failed to remove cluster:", err)
         return
     }
-    defer file.Close()
+    fmt.Printf("Successfully removed cluster: %s\n", name)
 
-    for _, line := range lines {
-        _, err := file.WriteString(line + "\n")
-        if err != nil {
-            fmt.Println("Error writing to file:", err)
-            return
-        }
+    // Remover o usuário associado
+    cmd = exec.Command("kubectl", "config", "unset", "users."+name+"-user")
+    err = cmd.Run()
+    if err != nil {
+        fmt.Println("Failed to remove user:", err)
+        return
     }
-
-    fmt.Printf("Context '%s' removed successfully.\n", name)
+    fmt.Printf("Successfully removed user: %s\n", name+"-user")
 }
 
 func setContext(context string) {
-    contexts, err := loadContexts()
+    cmd := exec.Command("kubectl", "config", "use-context", context)
+    err := cmd.Run()
     if err != nil {
-        fmt.Println("Error loading contexts:", err)
+        fmt.Println("Failed to switch context:", err)
         return
     }
 
-    value, ok := contexts[context]
-    if !ok {
-        fmt.Println("Invalid context. Use 'k context list' to see available contexts.")
-        return
-    }
-
-    var server, token string
-    var isOpenShift bool
-
-    if strings.HasPrefix(context, "os-") {
-        server, token = parseValue(value)
-        isOpenShift = true
-    } else {
-        server, token = parseValue(value)
-        isOpenShift = false
-    }
-
-    if isOpenShift {
-        setOpenShiftContext(server, token)
-    } else {
-        setRancherContext(server, token)
-    }
-}
-
-func parseValue(value string) (string, string) {
-    parts := strings.SplitN(value, " ", 2)
-    if len(parts) == 2 {
-        return parts[0], parts[1]
-    }
-    return parts[0], "" // Return empty string if token is not present
-}
-
-func setOpenShiftContext(server, token string) {
-    showSpinner("Setting the context to "+server+" [openshift]...", func() {
-        executeCommand("oc", "login", "--token="+token, "--server="+server)
-        time.Sleep(1 * time.Second)
-    })
-
-    fmt.Println("Current context:")
-    executeCommand("kubectl", "config", "current-context")
-}
-
-
-func setRancherContext(server, token string) {
-    showSpinner("Setting the context to "+server+" [rancher]...", func() {
-        executeCommand("rancher", "login", "--token="+token, "--server="+server)
-        time.Sleep(1 * time.Second)
-    })
-	fmt.Println("Current context:")
-	executeCommand("kubectl", "config", "current-context")
+    fmt.Println("Successfully switched to context:", context)
 }
 
 func executeCommand(command string, args ...string) {
@@ -387,30 +277,6 @@ func executeCommand(command string, args ...string) {
 	if err != nil {
 		fmt.Println("Error:", Red(err))
 	}
-}
-
-func loadContexts() (map[string]string, error) {
-	contexts := make(map[string]string)
-	file, err := os.Open(contextFile)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			contexts[parts[0]] = parts[1]
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return contexts, nil
 }
 
 func init() {
