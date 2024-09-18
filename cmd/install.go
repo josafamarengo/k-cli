@@ -70,6 +70,7 @@ func moveKubectlToPath() error {
 	if err := os.Rename("kubectl", "/usr/local/bin/kubectl"); err != nil {
 		return fmt.Errorf("failed to move kubectl to /usr/local/bin: %w", err)
 	}
+	execCommand("chmod", "+x", "/usr/local/bin/kubectl")
 	if !isCommandAvailable("kubectl") {
 		return fmt.Errorf("kubectl not found after move")
 	}
@@ -91,9 +92,6 @@ func installStern() {
 func downloadStern() error {
 	stern := "stern_1.30.0_linux_amd64"
 	sternURL := "https://github.com/stern/stern/releases/download/v1.30.0/stern_1.30.0_linux_amd64.tar.gz"
-	 localDir := filepath.Join(os.Getenv("HOME"), ".local", "bin")
-	 fmt.Printf("Local directory: %s\n", localDir)
-
 
 	fmt.Println("Downloading Stern...")
 	if err := execCommand("curl", "-L", "-o" , stern, sternURL); err != nil {
@@ -113,17 +111,11 @@ func downloadStern() error {
 	if err := execCommand("chmod", "+x", "stern"); err != nil {
 		return fmt.Errorf("failed to make Stern executable: %w", err)
     }
-	if err := execCommand("mv", "stern", localDir); err != nil {
+	if err := execCommand("mv", "stern", "/usr/local/bin/"); err != nil {
 		return fmt.Errorf("failed to install Stern: %w", err)
 	}
 
-	if err := addToPath(localDir); err != nil {
-		return fmt.Errorf("failed to update PATH: %w", err)
-	}
-
 	fmt.Println("Stern installed successfully.")
-	fmt.Println("")
-	fmt.Println("Please restart your shell or run `source ~/.zshrc` or `source ~/.bashrc` to update your PATH.")
 
 	return nil
 }

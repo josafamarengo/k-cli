@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"os/exec"
+	"k/ui"
 
     "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -14,7 +15,6 @@ import (
 var contextFile = "assets/contexts.txt"
 
 type model struct {
-    help helpModel
     name   string
     server string
     token  string
@@ -92,12 +92,12 @@ var contextCmd = &cobra.Command{
 		if len(args) == 0 {
 			fmt.Println("\nusage: k context <command> [<arg>]")
 			fmt.Println("\nThese are the available commands:")
-			fmt.Printf("\n   %s   List available contexts", Cyan("list"))
-			fmt.Printf("\n   %s    Get current context", Cyan("get"))
-			fmt.Printf("\n   %s    Set a specific context", Cyan("set"))
-			fmt.Printf("\n   %s    Add a new context", Cyan("add"))
-			fmt.Printf("\n   %s    Update an existing context", Cyan("update"))
-			fmt.Printf("\n   %s    Remove a context\n", Cyan("remove"))
+			fmt.Printf("\n   %s   List available contexts", ui.Cyan("list"))
+			fmt.Printf("\n   %s    Get current context", ui.Cyan("get"))
+			fmt.Printf("\n   %s    Set a specific context", ui.Cyan("set"))
+			fmt.Printf("\n   %s    Add a new context", ui.Cyan("add"))
+			fmt.Printf("\n   %s    Update an existing context", ui.Cyan("update"))
+			fmt.Printf("\n   %s    Remove a context\n", ui.Cyan("remove"))
 			return
 		}
 
@@ -128,9 +128,9 @@ var contextCmd = &cobra.Command{
 			removeContext(args[1])
 		default:
 			fmt.Println(" ")
-			fmt.Printf("Invalid command: %s\n", InvalidArg(args[0]))
+			fmt.Printf("Invalid command: %s\n", ui.InvalidArg(args[0]))
 			fmt.Println(" ")
-			fmt.Printf("Valid commands are: %s, %s, %s, %s, %s, %s\n", Yellow("list"), Yellow("get"), Yellow("set"), Yellow("add"), Yellow("update"), Yellow("remove"))
+			fmt.Printf("Valid commands are: %s, %s, %s, %s, %s, %s\n", ui.Yellow("list"), ui.Yellow("get"), ui.Yellow("set"), ui.Yellow("add"), ui.Yellow("update"), ui.Yellow("remove"))
 		}
 	},
 }
@@ -275,7 +275,7 @@ func executeCommand(command string, args ...string) {
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error:", Red(err))
+		fmt.Println("Error:", ui.Red(err))
 	}
 }
 

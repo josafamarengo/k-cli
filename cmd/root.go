@@ -4,6 +4,7 @@ import (
     "fmt"
     "github.com/spf13/cobra"
     "os"
+    "k/ui"
 )
 
 var (
@@ -23,31 +24,16 @@ var rootCmd = &cobra.Command{
         }
 
 		if len(args) == 0 {
-            showBanner()
             fmt.Println("\nusage: k [command] [<arg>]")
             fmt.Println("\nAvailable commands:")
-            fmt.Printf("   %s          Context command", Cyan("context"))
-            fmt.Printf("\n   %s    Tools instalation command", Cyan("install-tools"))
+            fmt.Printf("   %s          Context command", ui.Cyan("context"))
+            fmt.Printf("\n   %s    Tools instalation command", ui.Cyan("install-tools"))
             fmt.Println(" ")
             fmt.Println(" ")
             fmt.Println("\n" + appInfo + " - " + appVersion)
             return
         }
     },
-}
-
-// showBanner lê e exibe o conteúdo do arquivo banner.txt
-func showBanner() {
-    // Lê o conteúdo do arquivo banner.txt
-    filePath := "assets/banner.txt" 
-    data, err := os.ReadFile(filePath)
-    if err != nil {
-        fmt.Println("Error reading banner file:", err)
-        os.Exit(1)
-    }
-
-    // Imprime o conteúdo do banner.txt
-    fmt.Printf(string(data))
 }
 
 // Execute é a função que executa o comando raiz.
