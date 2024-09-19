@@ -40,14 +40,14 @@ func downloadKubectl() {
 	// Fazendo o request para obter a versão estável
 	resp, err := http.Get("https://dl.k8s.io/release/stable.txt")
 	if err != nil {
-		fmt.Println("Erro ao obter versão estável:", err)
+		fmt.Println("Error getting stable version:", err)
 	}
 	defer resp.Body.Close()
 
 	// Lendo o corpo da resposta
 	versionBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Erro ao ler a resposta:", err)
+		fmt.Println("Error reading response:", err)
 	}
 
 	// Convertendo bytes para string e removendo quebras de linha
@@ -57,7 +57,7 @@ func downloadKubectl() {
 	kubectlUrl := fmt.Sprintf("https://dl.k8s.io/release/%s/bin/linux/amd64/kubectl", version)
 
 	if kubectlUrl == "" {
-		fmt.Println("URL do kubectl não encontrada")
+		fmt.Println("kubectl URL not found")
 		return
 	}
 
@@ -139,7 +139,7 @@ func init() {
 func addToPath(cmd string) error {
 	usr, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("erro ao obter o diretório home do usuário: %w", err)
+		return fmt.Errorf("Error getting user home directory: %w", err)
 	}
 	homeDir := usr.HomeDir
 
@@ -154,27 +154,27 @@ func addToPath(cmd string) error {
 		if _, err := os.Stat(file); err == nil {
 			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
-				return fmt.Errorf("erro ao abrir o arquivo %s: %w", file, err)
+				return fmt.Errorf("Error opening file %s: %w", file, err)
 			}
 
 			content, err := os.ReadFile(file)
 			if err != nil {
 				f.Close()
-				return fmt.Errorf("erro ao ler o arquivo %s: %w", file, err)
+				return fmt.Errorf("Error opening file %s: %w", file, err)
 			}
 
 			if !strings.Contains(string(content), lineToAdd) {
 				if _, err := f.WriteString("\n" + lineToAdd + "\n"); err != nil {
 					f.Close()
-					return fmt.Errorf("erro ao escrever no arquivo %s: %w", file, err)
+					return fmt.Errorf("Error writing to file %s: %w", file, err)
 				}
-				fmt.Printf("Linha adicionada ao arquivo %s\n", file)
+				fmt.Printf("Line added to file %s\n", file)
 			} else {
-				fmt.Printf("A linha já está presente no arquivo %s\n", file)
+				fmt.Printf("The line is already present in the file %s\n", file)
 			}
 			f.Close()
 		} else {
-			fmt.Printf("Arquivo %s não encontrado\n", file)
+			fmt.Printf("File %s not found.\n", file)
 		}
 	}
 	return nil

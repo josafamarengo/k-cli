@@ -15,7 +15,7 @@ func TestParseValue(t *testing.T) {
 
     server, token = parseValue("server-url")
     assert.Equal(t, "server-url", server)
-    assert.Equal(t, "", token) // No token provided, should return empty string
+    assert.Equal(t, "", token)
 }
 
 func TestAddContext(t *testing.T) {

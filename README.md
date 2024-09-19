@@ -52,6 +52,25 @@ I built this project to streamline the setup of various developer tools, enablin
 
 ## Installation
 
+### Execute the following command
+```bash
+curl -sL https://raw.githubusercontent.com/josafamarengo/k-cli/main/install.sh | bash
+```
+### Manual Installation
+
+1. Download the binary
+```bash
+curl -L https://github.com/josafamarengo/k-cli/releases/download/v0.1.0/k-linux-amd64.tar.gz -o /tmp/k-linux-amd64.tar.gz
+```
+2. Extract the k-linux-amd64
+```bash
+tar -xzf /tmp/k-linux-amd64.tar.gz -C /tmp
+```
+3. Move the binary to the usr/local/bin directory
+```bash
+sudo mv /tmp/k /usr/local/bin
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Usage
