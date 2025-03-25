@@ -5,6 +5,9 @@
 [![Contributors][contributors-shield]][contributors-url]
 [![Stars][stars-shield]][stars-url]
 [![Forks][forks-shield]][forks-url]
+![GitHub last commit](https://img.shields.io/github/last-commit/josafamarengo/gestao-estudos?style=for-the-badge)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/josafamarengo/k-cli/total?style=for-the-badge)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/josafamarengo/k-cli?style=for-the-badge)
 [![License][license-shield]][license-url]
 
 
@@ -116,20 +119,20 @@ If you encounter any bugs or have feature requests, please open an issue on our 
 [repo-url]: https://github.com/josafamarengo/k-cli
 [issues-url]: https://github.com/josafamarengo/k-cli/issues
 
-[contributors-shield]: https://img.shields.io/github/contributors/josafamarengo/k-cli.svg?style=flat
+[contributors-shield]: https://img.shields.io/github/contributors/josafamarengo/k-cli.svg?style=for-the-badge
 [contributors-url]: https://github.com/josafamarengo/k-cli/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/josafamarengo/k-cli.svg?style=flat
+[forks-shield]: https://img.shields.io/github/forks/josafamarengo/k-cli.svg?style=for-the-badge
 [forks-url]: https://github.com/josafamarengo/k-cli/network/members
-[stars-shield]: https://img.shields.io/github/stars/josafamarengo/k-cli.svg?style=flat
+[stars-shield]: https://img.shields.io/github/stars/josafamarengo/k-cli.svg?style=for-the-badge
 [stars-url]: https://github.com/josafamarengo/k-cli/stargazers
-[issues-shield]: https://img.shields.io/github/issues/josafamarengo/k-cli.svg?style=flat
+[issues-shield]: https://img.shields.io/github/issues/josafamarengo/k-cli.svg?style=for-the-badge
 [issues-url]: https://github.com/josafamarengo/k-cli/issues
-[license-shield]: https://img.shields.io/badge/License-GPL%20v3-blue.svg
+[license-shield]: https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=for-the-badge
 [license-url]: https://github.com/josafamarengo/k-cli/blob/main/LICENSE.md
 
 <!-- SOCIAL LINKS -->
-[linkedin-shield]: https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white
+[linkedin-shield]: https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white
 [linkedin-url]: https://linkedin.com/in/josafamarengo
 
-[site-shield]: https://img.shields.io/badge/website-000000?style=flat&logo=Google-chrome&logoColor=white
+[site-shield]: https://img.shields.io/badge/website-000000?style=for-the-badge&logo=Google-chrome&logoColor=white
 [site-url]: https://josafa.com.br
